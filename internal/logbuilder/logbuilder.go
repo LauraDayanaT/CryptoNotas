@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/LauraDayanaT/cryptonotas/internal/models"
@@ -58,6 +59,11 @@ func GuardarLog(log models.Log, ruta string) ([]byte, string, error) {
 	hash := sha256.Sum256(bytes)
 	hashHex := hex.EncodeToString(hash[:])
 
+	// Aseguramos que la carpeta exista antes de escribir
+	if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
+		return nil, "", fmt.Errorf("logbuilder: error creando directorio: %w", err)
+	}
+
 	if err := os.WriteFile(ruta, bytes, 0o644); err != nil {
 		return nil, "", fmt.Errorf("logbuilder: error escribiendo %s: %w", ruta, err)
 	}
@@ -68,6 +74,12 @@ func GuardarLog(log models.Log, ruta string) ([]byte, string, error) {
 // GuardarHash escribe un hash hexadecimal en un archivo de una sola línea.
 func GuardarHash(hashHex, ruta string) error {
 	contenido := []byte(hashHex + "\n")
+
+	// Aseguramos que la carpeta exista antes de escribir
+	if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
+		return fmt.Errorf("logbuilder: error creando directorio: %w", err)
+	}
+
 	if err := os.WriteFile(ruta, contenido, 0o644); err != nil {
 		return fmt.Errorf("logbuilder: error escribiendo hash en %s: %w", ruta, err)
 	}
