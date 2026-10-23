@@ -122,4 +122,42 @@ func TestGuardarHash_EscribeUnaLinea(t *testing.T) {
 	if string(contenido) != "abcdef123456\n" {
 		t.Fatalf("contenido inesperado: %q", string(contenido))
 	}
+
+}
+
+func TestVerificarHashPayload_DetectaAlteracion(t *testing.T) {
+	payload := models.PayloadEvento{
+		IDEvento:  "evt-001",
+		Tipo:      models.TipoRegistroNota,
+		NotaNueva: 4.5,
+	}
+
+	// 1. Calculamos el hash original
+	hash, err := models.CalcularHashPayload(payload)
+	if err != nil {
+		t.Fatalf("Error calculando hash: %v", err)
+	}
+
+	evento := models.Evento{
+		PayloadEvento: payload,
+		HashPayload:   hash,
+	}
+
+	// 2. Verificamos que el original sea válido
+	valido, err := evento.VerificarHashPayload()
+	if err != nil || !valido {
+		t.Fatal("El hash original debería ser válido")
+	}
+
+	// 3. Alteramos la nota (simulamos un hacker)
+	evento.NotaNueva = 5.0
+
+	// 4. Verificamos que el sistema detecte la alteración
+	valido, err = evento.VerificarHashPayload()
+	if err != nil {
+		t.Fatalf("Error verificando hash: %v", err)
+	}
+	if valido {
+		t.Fatal("¡Peligro! El sistema no detectó la alteración de la nota")
+	}
 }
