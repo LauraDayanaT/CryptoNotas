@@ -1,8 +1,3 @@
+// Package ui contiene la interfaz de línea de comandos
+// y la interacción con el usuario.
 package ui
-
-import "fmt"
-
-// Ejecutar arranca el menú principal del programa.
-func Ejecutar() error {
-	return fmt.Errorf("ui.Ejecutar: no implementado todavía")
-}
