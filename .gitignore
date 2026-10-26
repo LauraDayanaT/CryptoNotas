@@ -1,12 +1,13 @@
-# Artefactos de salida (nunca se versionan)
+# Artefactos generados
+salida/
 output/
 
-# Claves y material criptográfico
+# Material criptográfico
 *.key
 *.bin
 *.sha256
 
-# Binarios compilados
+# Ejecutables
 cryptonotas
 *.exe
 
@@ -15,6 +16,6 @@ cryptonotas
 .vscode/
 *.swp
 
-# OS
+# Sistema operativo
 .DS_Store
 Thumbs.db
