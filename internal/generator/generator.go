@@ -4,7 +4,6 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"math/rand"
 	"time"
 
@@ -23,7 +22,10 @@ func GenerarEventos(n int) ([]models.Evento, error) {
 	for i := 0; i < n; i++ {
 		tipo := models.TipoRegistroNota
 
-		if rand.Intn(2) == 1 {
+		if i == 1 {
+			// Garantizar que el segundo evento sea una modificación.
+			tipo = models.TipoModificacionNota
+		} else if i > 1 && rand.Intn(2) == 1 {
 			tipo = models.TipoModificacionNota
 		}
 
@@ -59,6 +61,17 @@ func GenerarEventos(n int) ([]models.Evento, error) {
 
 		if tipo == models.TipoModificacionNota {
 			notaAnterior := generarNota()
+
+			// Una modificación debe representar un cambio real de nota.
+			// Si ambas notas coinciden, ajustamos una centésima sin salir del rango.
+			if notaAnterior == notaNueva {
+				if notaAnterior < 5.0 {
+					notaAnterior += 0.01
+				} else {
+					notaAnterior -= 0.01
+				}
+			}
+
 			payload.NotaAnterior = &notaAnterior
 		}
 
@@ -81,7 +94,8 @@ func GenerarEventos(n int) ([]models.Evento, error) {
 // generarNota produce una nota aleatoria entre 0.00 y 5.00,
 // con valores en incrementos de una centésima.
 func generarNota() float64 {
-	return math.Round(rand.Float64()*500) / 100
+	// Cada nota de 0.00 a 5.00, en pasos de 0.01, tiene la misma probabilidad.
+	return float64(rand.Intn(501)) / 100
 }
 
 // generarUID crea un identificador aleatorio usando
