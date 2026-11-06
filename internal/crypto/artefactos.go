@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/ed25519"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,8 @@ type Rutas struct {
 	Clave       string // clave AES-256 (32 bytes)
 	Nonce       string // nonce de AES-GCM (12 bytes)
 	HashCifrado string // SHA-256 del log cifrado, en hexadecimal
+	Manifiesto  string // ruta del manifiesto.json
+	Firma       string // ruta del manifiesto.sig
 }
 
 // RutasPorDefecto devuelve las rutas con los mismos nombres que usa la CLI
@@ -24,6 +27,8 @@ func RutasPorDefecto(dir string) Rutas {
 		Clave:       filepath.Join(dir, "clave.bin"),
 		Nonce:       filepath.Join(dir, "nonce.bin"),
 		HashCifrado: filepath.Join(dir, "log.enc.sha256"),
+		Manifiesto:  filepath.Join(dir, "manifiesto.json"),
+		Firma:       filepath.Join(dir, "manifiesto.sig"),
 	}
 }
 
@@ -106,6 +111,49 @@ func DescifrarYComparar(cifrado, clave, nonce []byte, hashOriginal string) (Resu
 		HashOriginal:   hashOriginal,
 		Coinciden:      hashDescifrado == hashOriginal,
 	}, nil
+}
+
+// GuardarManifiestoYFirma crea el manifiesto, lo firma con la clave privada
+// y guarda ambos archivos en disco.
+func GuardarManifiestoYFirma(r Rutas, hashCifrado string, nonce []byte, privada ed25519.PrivateKey) error {
+	// 1. Crear el manifiesto
+	bytesManifiesto, err := CrearManifiesto("log.enc", hashCifrado, nonce)
+	if err != nil {
+		return fmt.Errorf("creando manifiesto: %w", err)
+	}
+
+	// 2. Firmar el manifiesto
+	firma, err := FirmarManifiesto(bytesManifiesto, privada)
+	if err != nil {
+		return fmt.Errorf("firmando manifiesto: %w", err)
+	}
+
+	// 3. Guardar en disco
+	if err := escribirArchivo(r.Manifiesto, bytesManifiesto); err != nil {
+		return fmt.Errorf("guardando manifiesto: %w", err)
+	}
+	if err := escribirArchivo(r.Firma, firma); err != nil {
+		return fmt.Errorf("guardando firma: %w", err)
+	}
+	return nil
+}
+
+// VerificarFirmaAntesDeDescifrar carga el manifiesto y la firma, y verifica
+// que la firma sea válida usando la clave pública.
+func VerificarFirmaAntesDeDescifrar(r Rutas, publica ed25519.PublicKey) (bool, error) {
+	// 1. Leer manifiesto y firma
+	bytesManifiesto, err := os.ReadFile(r.Manifiesto)
+	if err != nil {
+		return false, fmt.Errorf("leyendo manifiesto: %w", err)
+	}
+	firma, err := os.ReadFile(r.Firma)
+	if err != nil {
+		return false, fmt.Errorf("leyendo firma: %w", err)
+	}
+
+	// 2. Verificar
+	esValida := VerificarFirmaManifiesto(bytesManifiesto, firma, publica)
+	return esValida, nil
 }
 
 // escribirArchivo crea el directorio si hace falta y escribe el archivo con
