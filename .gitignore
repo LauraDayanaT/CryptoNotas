@@ -6,6 +6,7 @@ output/
 *.key
 *.bin
 *.sha256
+*.pub
 
 # Ejecutables
 cryptonotas
