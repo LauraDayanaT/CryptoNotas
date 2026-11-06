@@ -84,6 +84,3 @@ func GuardarClaves(rutaPrivada, rutaPublica string, privada ed25519.PrivateKey, 
 	}
 	return nil
 }
-
-// CalcularHashSHA256 (auxiliar por si lo necesitas aquí, aunque ya existe en crypto.go)
-// Lo dejo por si acaso, pero usaremos el que ya tienes.
