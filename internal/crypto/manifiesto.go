@@ -61,6 +61,13 @@ func FirmarManifiesto(manifiesto []byte, privada ed25519.PrivateKey) ([]byte, er
 // VerificarFirmaManifiesto comprueba que la firma coincide con el manifiesto
 // y la clave pública. Devuelve true si todo está bien.
 func VerificarFirmaManifiesto(manifiesto, firma []byte, publica ed25519.PublicKey) bool {
+	// Validamos que la clave pública tenga el tamaño correcto (32 bytes)
+	if len(publica) != ed25519.PublicKeySize {
+		return false
+	}
+	if len(firma) != ed25519.SignatureSize {
+		return false
+	}
 	return ed25519.Verify(publica, manifiesto, firma)
 }
 

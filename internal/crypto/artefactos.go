@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"crypto/ed25519"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -151,9 +152,32 @@ func VerificarFirmaAntesDeDescifrar(r Rutas, publica ed25519.PublicKey) (bool, e
 		return false, fmt.Errorf("leyendo firma: %w", err)
 	}
 
-	// 2. Verificar
-	esValida := VerificarFirmaManifiesto(bytesManifiesto, firma, publica)
-	return esValida, nil
+	// 2. Verificar la firma del manifiesto (autenticidad)
+	if !VerificarFirmaManifiesto(bytesManifiesto, firma, publica) {
+		return false, nil // Firma inválida
+	}
+
+	// 3. AHORA: Verificar que el hash del manifiesto coincida con el archivo real
+	// Para eso, decodificamos el manifiesto
+	var man Manifiesto
+	if err := json.Unmarshal(bytesManifiesto, &man); err != nil {
+		return false, fmt.Errorf("error decodificando manifiesto: %w", err)
+	}
+
+	// Leemos el archivo cifrado real y calculamos su hash
+	cifradoReal, err := os.ReadFile(r.Cifrado)
+	if err != nil {
+		return false, fmt.Errorf("leyendo archivo cifrado real: %w", err)
+	}
+	hashReal := HashSHA256(cifradoReal)
+
+	// Comparamos el hash real con el que dice el manifiesto
+	if hashReal != man.Hash {
+		return false, nil // El archivo fue alterado
+	}
+
+	// Todo ok
+	return true, nil
 }
 
 // escribirArchivo crea el directorio si hace falta y escribe el archivo con
