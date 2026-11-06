@@ -3,14 +3,12 @@ package crypto
 import (
 	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 )
 
-// Manifiesto es la estructura exacta que acordamos en el plan de Leandro.
+// Manifiesto define los metadatos protegidos por la firma.
 type Manifiesto struct {
 	Version        int    `json:"version"`
 	AlgoritmoHash  string `json:"algoritmo_hash"`
@@ -89,7 +87,3 @@ func GuardarClaves(rutaPrivada, rutaPublica string, privada ed25519.PrivateKey, 
 
 // CalcularHashSHA256 (auxiliar por si lo necesitas aquí, aunque ya existe en crypto.go)
 // Lo dejo por si acaso, pero usaremos el que ya tienes.
-func calcularHashLocal(datos []byte) string {
-	hash := sha256.Sum256(datos)
-	return hex.EncodeToString(hash[:])
-}
