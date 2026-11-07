@@ -34,14 +34,35 @@ func ConstruirLog(eventos []models.Evento) (models.Log, error) {
 	return log, nil
 }
 
-// validarLog verifica que la cantidad en metadatos coincida con la longitud de eventos.
+// validarLog verifica la consistencia de los metadatos
+// y la integridad individual de cada evento.
 func validarLog(log models.Log) error {
+	// 1. Validar la cantidad de eventos.
 	if log.Metadatos.CantidadEventos != len(log.Eventos) {
 		return fmt.Errorf(
 			"logbuilder: inconsistencia: metadatos.cantidad_eventos=%d pero len(eventos)=%d",
 			log.Metadatos.CantidadEventos, len(log.Eventos),
 		)
 	}
+
+	// 2. Verificar el hash de cada evento.
+	for i, evento := range log.Eventos {
+		valido, err := evento.VerificarHashPayload()
+		if err != nil {
+			return fmt.Errorf(
+				"logbuilder: error verificando el evento %d (%s): %w",
+				i, evento.IDEvento, err,
+			)
+		}
+
+		if !valido {
+			return fmt.Errorf(
+				"logbuilder: integridad comprometida en el evento %d (%s): el hash no coincide con su contenido",
+				i, evento.IDEvento,
+			)
+		}
+	}
+
 	return nil
 }
 
