@@ -20,3 +20,6 @@ cryptonotas
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Claves criptográficas locales
+/claves/

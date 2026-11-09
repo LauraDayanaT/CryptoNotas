@@ -13,7 +13,10 @@ import (
 	"github.com/LauraDayanaT/cryptonotas/internal/models"
 )
 
-const directorioSalida = "salida"
+const (
+	directorioSalida = "salida"
+	directorioClaves = "claves"
+)
 
 const (
 	rutaOriginal       = directorioSalida + "/log.json"
@@ -140,6 +143,34 @@ func generarLog() error {
 		return fmt.Errorf("guardando el hash cifrado: %w", err)
 	}
 
+	// Obtener las claves Ed25519 persistentes.
+	publica, privada, err := cryptoutil.CargarOCrearClaves(directorioClaves)
+	if err != nil {
+		return fmt.Errorf("preparando claves Ed25519: %w", err)
+	}
+
+	// Crear y firmar el manifiesto del archivo cifrado.
+	rutas := cryptoutil.RutasPorDefecto(directorioSalida)
+
+	if err := cryptoutil.GuardarManifiestoYFirma(
+		rutas, hashCifrado, nonce, privada,
+	); err != nil {
+		return fmt.Errorf("guardando manifiesto firmado: %w", err)
+	}
+
+	// Verificar el archivo firmado antes del descifrado.
+	firmaValida, err := cryptoutil.VerificarFirmaAntesDeDescifrar(
+		rutas, publica,
+	)
+	if err != nil {
+		return fmt.Errorf("verificando firma digital: %w", err)
+	}
+	if !firmaValida {
+		return fmt.Errorf("integridad incorrecta: firma digital o datos firmados inválidos")
+	}
+
+	fmt.Println("Firma digital Ed25519: VÁLIDA")
+
 	// Verificar el hash del archivo cifrado realmente almacenado en disco.
 	cifradoDisco, err := os.ReadFile(rutaCifrado)
 	if err != nil {
@@ -189,6 +220,31 @@ func generarLog() error {
 
 // descifrarLogExistente recupera un log usando los artefactos guardados.
 func descifrarLogExistente() error {
+
+	// Usar exclusivamente el par de claves existente.
+	// No generar claves nuevas durante la verificación.
+	rutaPublica := directorioClaves + "/publica_ed25519.pub"
+
+	publica, err := os.ReadFile(rutaPublica)
+	if err != nil {
+		return fmt.Errorf("leyendo clave pública Ed25519: %w", err)
+	}
+
+	rutas := cryptoutil.RutasPorDefecto(directorioSalida)
+
+	firmaValida, err := cryptoutil.VerificarFirmaAntesDeDescifrar(
+		rutas, publica,
+	)
+	if err != nil {
+		return fmt.Errorf("verificando firma digital: %w", err)
+	}
+
+	if !firmaValida {
+		return fmt.Errorf("ALERTA DE INTEGRIDAD: firma digital inválida o archivo alterado")
+	}
+
+	fmt.Println("Firma digital Ed25519: VÁLIDA")
+
 	cifrado, err := os.ReadFile(rutaCifrado)
 	if err != nil {
 		return fmt.Errorf("leyendo el log cifrado: %w", err)

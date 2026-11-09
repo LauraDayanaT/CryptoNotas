@@ -1,7 +1,9 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -164,6 +166,23 @@ func VerificarFirmaAntesDeDescifrar(r Rutas, publica ed25519.PublicKey) (bool, e
 		return false, fmt.Errorf("error decodificando manifiesto: %w", err)
 	}
 
+	// Validar los metadatos del manifiesto firmado.
+	if man.Version != 1 {
+		return false, nil
+	}
+
+	if man.AlgoritmoHash != "SHA-256" {
+		return false, nil
+	}
+
+	if man.AlgoritmoFirma != "Ed25519" {
+		return false, nil
+	}
+
+	if man.Archivo != filepath.Base(r.Cifrado) {
+		return false, nil
+	}
+
 	// Leemos el archivo cifrado real y calculamos su hash
 	cifradoReal, err := os.ReadFile(r.Cifrado)
 	if err != nil {
@@ -176,7 +195,23 @@ func VerificarFirmaAntesDeDescifrar(r Rutas, publica ed25519.PublicKey) (bool, e
 		return false, nil // El archivo fue alterado
 	}
 
-	// Todo ok
+	// 4. Verificar que el nonce almacenado coincida
+	// con el nonce protegido por la firma digital.
+	nonceReal, err := os.ReadFile(r.Nonce)
+	if err != nil {
+		return false, fmt.Errorf("leyendo nonce real: %w", err)
+	}
+
+	nonceFirmado, err := base64.StdEncoding.DecodeString(man.Nonce)
+	if err != nil {
+		return false, fmt.Errorf("decodificando nonce del manifiesto: %w", err)
+	}
+
+	if !bytes.Equal(nonceReal, nonceFirmado) {
+		return false, nil
+	}
+
+	// Todas las verificaciones fueron correctas.
 	return true, nil
 }
 
