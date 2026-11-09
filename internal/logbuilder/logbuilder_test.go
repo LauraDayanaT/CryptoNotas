@@ -11,8 +11,11 @@ import (
 	"github.com/LauraDayanaT/cryptonotas/internal/models"
 )
 
-func eventosDePrueba(n int) []models.Evento {
+func eventosDePrueba(t *testing.T, n int) []models.Evento {
+	t.Helper()
+
 	eventos := make([]models.Evento, 0, n)
+
 	for i := 0; i < n; i++ {
 		payload := models.PayloadEvento{
 			IDEvento:      "evt-" + string(rune('a'+i)),
@@ -23,16 +26,23 @@ func eventosDePrueba(n int) []models.Evento {
 			CursoUID:      "curso-001",
 			NotaNueva:     4.2,
 		}
+
+		hash, err := models.CalcularHashPayload(payload)
+		if err != nil {
+			t.Fatalf("no se pudo calcular el hash del evento: %v", err)
+		}
+
 		eventos = append(eventos, models.Evento{
 			PayloadEvento: payload,
-			HashPayload:   "hash-fake",
+			HashPayload:   hash,
 		})
 	}
+
 	return eventos
 }
 
 func TestConstruirLog_JSONValido(t *testing.T) {
-	log, err := ConstruirLog(eventosDePrueba(3))
+	log, err := ConstruirLog(eventosDePrueba(t, 3))
 	if err != nil {
 		t.Fatalf("ConstruirLog devolvió error: %v", err)
 	}
@@ -46,7 +56,7 @@ func TestConstruirLog_JSONValido(t *testing.T) {
 }
 
 func TestConstruirLog_CantidadCorrecta(t *testing.T) {
-	log, err := ConstruirLog(eventosDePrueba(5))
+	log, err := ConstruirLog(eventosDePrueba(t, 5))
 	if err != nil {
 		t.Fatalf("ConstruirLog devolvió error: %v", err)
 	}
@@ -67,7 +77,7 @@ func TestConstruirLog_NilFalla(t *testing.T) {
 func TestValidarLog_InconsistenciaFalla(t *testing.T) {
 	log := models.Log{
 		Metadatos: models.MetadatosLog{CantidadEventos: 10},
-		Eventos:   eventosDePrueba(2),
+		Eventos:   eventosDePrueba(t, 2),
 	}
 	if err := validarLog(log); err == nil {
 		t.Fatal("se esperaba error por inconsistencia entre metadatos y len(eventos)")
@@ -78,7 +88,7 @@ func TestGuardarLog_HashCoincideConArchivoEnDisco(t *testing.T) {
 	dir := t.TempDir()
 	ruta := filepath.Join(dir, "log_original.json")
 
-	log, err := ConstruirLog(eventosDePrueba(4))
+	log, err := ConstruirLog(eventosDePrueba(t, 4))
 	if err != nil {
 		t.Fatalf("ConstruirLog devolvió error: %v", err)
 	}
@@ -128,7 +138,7 @@ func TestGuardarHash_EscribeUnaLinea(t *testing.T) {
 func TestGuardarLog_CreaDirectorioSiNoExiste(t *testing.T) {
 	ruta := filepath.Join(t.TempDir(), "output", "sub", "log_original.json")
 
-	log, err := ConstruirLog(eventosDePrueba(2))
+	log, err := ConstruirLog(eventosDePrueba(t, 2))
 	if err != nil {
 		t.Fatalf("ConstruirLog devolvió error: %v", err)
 	}
@@ -138,4 +148,48 @@ func TestGuardarLog_CreaDirectorioSiNoExiste(t *testing.T) {
 	if _, err := os.Stat(ruta); err != nil {
 		t.Fatalf("el archivo no existe: %v", err)
 	}
+}
+
+func TestValidarLog_HashIncorrectoFalla(t *testing.T) {
+	eventos := eventosDePrueba(t, 2)
+
+	// Simulamos la alteración del hash almacenado.
+	eventos[0].HashPayload = "hash-falso"
+
+	log := models.Log{
+		Metadatos: models.MetadatosLog{
+			CantidadEventos: len(eventos),
+		},
+		Eventos: eventos,
+	}
+
+	err := validarLog(log)
+
+	if err == nil {
+		t.Fatal("se esperaba un error por hash incorrecto")
+	}
+
+	t.Logf("Integridad comprometida detectada: %v", err)
+}
+
+func TestValidarLog_PayloadManipuladoFalla(t *testing.T) {
+	eventos := eventosDePrueba(t, 2)
+
+	// Simulamos un atacante que modifica la nota.
+	eventos[0].NotaNueva = 1.0
+
+	log := models.Log{
+		Metadatos: models.MetadatosLog{
+			CantidadEventos: len(eventos),
+		},
+		Eventos: eventos,
+	}
+
+	err := validarLog(log)
+
+	if err == nil {
+		t.Fatal("se esperaba detectar la modificación del payload")
+	}
+
+	t.Logf("Modificación del payload detectada: %v", err)
 }
