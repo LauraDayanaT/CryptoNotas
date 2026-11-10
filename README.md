@@ -81,6 +81,10 @@ go run ./cmd/cli
 | `log_descifrado.json` | Log recuperado |
 | `log_descifrado.sha256` | Hash del log descifrado |
 
+## Firmas digitales Ed25519
+
+Ver [docs/firmas-ed25519.md](docs/firmas-ed25519.md): generación de claves, firma y verificación del manifiesto.
+
 ## Pruebas
 
 ```bash
