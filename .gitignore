@@ -23,3 +23,5 @@ Thumbs.db
 
 # Claves criptográficas locales
 /claves/
+# Claves privadas (nunca subir)
+claves/

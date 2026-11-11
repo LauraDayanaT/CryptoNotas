@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"crypto/ed25519"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -18,14 +17,9 @@ type Manifiesto struct {
 	Nonce          string `json:"nonce"`
 }
 
-// GenerarClavesEd25519 crea el par de claves (privada y pública).
-// La privada se usa para firmar y la pública para verificar.
+// GenerarClavesEd25519 se conserva por compatibilidad; usa GenerarParClaves (firma.go).
 func GenerarClavesEd25519() (ed25519.PublicKey, ed25519.PrivateKey, error) {
-	pub, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error generando claves Ed25519: %w", err)
-	}
-	return pub, priv, nil
+	return GenerarParClaves()
 }
 
 // CrearManifiesto genera el JSON del manifiesto y lo devuelve como bytes.
@@ -49,38 +43,13 @@ func CrearManifiesto(archivo string, hashCifrado string, nonce []byte) ([]byte, 
 	return bytesManifiesto, nil
 }
 
-// FirmarManifiesto recibe los bytes del manifiesto y la clave privada,
-// y devuelve la firma digital.
-func FirmarManifiesto(manifiesto []byte, privada ed25519.PrivateKey) ([]byte, error) {
-	firma := ed25519.Sign(privada, manifiesto)
-	return firma, nil
-}
-
-// VerificarFirmaManifiesto comprueba que la firma coincide con el manifiesto
-// y la clave pública. Devuelve true si todo está bien.
+// VerificarFirmaManifiesto devuelve true si la firma es válida.
+// Envuelve VerificarFirma (firma.go), que devuelve el motivo del fallo.
 func VerificarFirmaManifiesto(manifiesto, firma []byte, publica ed25519.PublicKey) bool {
-	// Validamos que la clave pública tenga el tamaño correcto (32 bytes)
-	if len(publica) != ed25519.PublicKeySize {
-		return false
-	}
-	if len(firma) != ed25519.SignatureSize {
-		return false
-	}
-	return ed25519.Verify(publica, manifiesto, firma)
+	return VerificarFirma(manifiesto, firma, publica) == nil
 }
 
 // GuardarFirma escribe la firma en un archivo binario (.sig)
 func GuardarFirma(ruta string, firma []byte) error {
 	return escribirArchivo(ruta, firma) // Reutilizamos la función de artefactos.go
-}
-
-// GuardarClaves escribe las claves en archivos separados para la demo.
-func GuardarClaves(rutaPrivada, rutaPublica string, privada ed25519.PrivateKey, publica ed25519.PublicKey) error {
-	if err := escribirArchivo(rutaPrivada, privada); err != nil {
-		return fmt.Errorf("guardando clave privada: %w", err)
-	}
-	if err := escribirArchivo(rutaPublica, publica); err != nil {
-		return fmt.Errorf("guardando clave pública: %w", err)
-	}
-	return nil
 }

@@ -11,34 +11,28 @@ import (
 // Si no existe ninguna, genera un nuevo par.
 // Nunca reemplaza automáticamente un par incompleto.
 func CargarOCrearClaves(dir string) (ed25519.PublicKey, ed25519.PrivateKey, error) {
-	rutaPrivada := filepath.Join(dir, "privada_ed25519.key")
-	rutaPublica := filepath.Join(dir, "publica_ed25519.pub")
+	rutaPrivada := filepath.Join(dir, NombreClavePrivada)
+	rutaPublica := filepath.Join(dir, NombreClavePublica)
 
 	_, errPriv := os.Stat(rutaPrivada)
 	_, errPub := os.Stat(rutaPublica)
 
 	if errPriv == nil && errPub == nil {
-		privada, err := os.ReadFile(rutaPrivada)
+		privada, err := CargarClavePrivada(rutaPrivada)
 		if err != nil {
-			return nil, nil, fmt.Errorf("leyendo clave privada: %w", err)
+			return nil, nil, err
 		}
 
-		publica, err := os.ReadFile(rutaPublica)
+		publica, err := CargarClavePublica(rutaPublica)
 		if err != nil {
-			return nil, nil, fmt.Errorf("leyendo clave pública: %w", err)
+			return nil, nil, err
 		}
 
-		if len(privada) != ed25519.PrivateKeySize ||
-			len(publica) != ed25519.PublicKeySize {
-			return nil, nil, fmt.Errorf("tamaño de claves Ed25519 inválido")
-		}
-
-		if !ed25519.PublicKey(publica).Equal(ed25519.PrivateKey(privada).Public()) {
+		if !publica.Equal(privada.Public()) {
 			return nil, nil, fmt.Errorf("la clave pública no corresponde a la privada")
 		}
 
-		return ed25519.PublicKey(publica),
-			ed25519.PrivateKey(privada), nil
+		return publica, privada, nil
 	}
 
 	if (errPriv != nil && !os.IsNotExist(errPriv)) ||
@@ -52,37 +46,14 @@ func CargarOCrearClaves(dir string) (ed25519.PublicKey, ed25519.PrivateKey, erro
 		)
 	}
 
-	publica, privada, err := GenerarClavesEd25519()
+	publica, privada, err := GenerarParClaves()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return nil, nil, fmt.Errorf("creando directorio de claves: %w", err)
-	}
-
-	if err := escribirClaveNueva(rutaPrivada, privada); err != nil {
-		return nil, nil, fmt.Errorf("guardando clave privada: %w", err)
-	}
-
-	if err := escribirClaveNueva(rutaPublica, publica); err != nil {
-		return nil, nil, fmt.Errorf("guardando clave pública: %w", err)
+	if err := GuardarClaves(publica, privada, dir); err != nil {
+		return nil, nil, err
 	}
 
 	return publica, privada, nil
-}
-
-// escribirClaveNueva impide sobrescribir una clave existente.
-func escribirClaveNueva(ruta string, contenido []byte) error {
-	archivo, err := os.OpenFile(ruta, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return err
-	}
-	defer archivo.Close()
-
-	if _, err := archivo.Write(contenido); err != nil {
-		return err
-	}
-
-	return archivo.Sync()
 }
