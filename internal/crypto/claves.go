@@ -18,6 +18,12 @@ func CargarOCrearClaves(dir string) (ed25519.PublicKey, ed25519.PrivateKey, erro
 	_, errPub := os.Stat(rutaPublica)
 
 	if errPriv == nil && errPub == nil {
+		if err := restringirPermisos(rutaPrivada); err != nil {
+			return nil, nil, fmt.Errorf(
+				"restringiendo permisos de la clave privada existente: %w",
+				err,
+			)
+		}
 		privada, err := CargarClavePrivada(rutaPrivada)
 		if err != nil {
 			return nil, nil, err
